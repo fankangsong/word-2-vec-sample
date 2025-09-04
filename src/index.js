@@ -1,51 +1,64 @@
-// word_vectors_label.js
-const tf = require("@tensorflow/tfjs");
+// glove_similarity.js
+// 使用预训练的 GloVe 向量，计算词语相似度
 
-// ------------------------
-// 1️⃣ 准备小语料
-// ------------------------
-const corpus = [
-  ["cat", "dog", "cat", "kitten", "dog", "puppy"],
-  ["apple", "banana", "orange", "fruit", "apple", "banana"],
-  ["cat", "dog", "pet", "animal", "dog", "cat"],
+const fs = require("fs");
+const path = require("path");
+
+// 预训练 GloVe 文件路径（请修改为你解压后的文件路径）
+const GLOVE_FILE = path.join(__dirname, "./models/glove.6B.50d.txt");
+
+// 要测试的词汇
+const wordsToCheck = [
+  "cat",
+  "dog",
+  "kitten",
+  "puppy",
+  "apple",
+  "banana",
+  "orange",
+  "fruit",
+  "car",
+  "bus",
+  "train",
+  "vehicle",
+  "king",
+  "queen",
+  "man",
+  "woman",
 ];
 
 // ------------------------
-// 2️⃣ 构建词表
+// 1️⃣ 读取 GloVe 向量文件
 // ------------------------
-const allWords = [...new Set(corpus.flat())];
-const word2index = Object.fromEntries(allWords.map((w, i) => [w, i]));
-const index2word = Object.fromEntries(allWords.map((w, i) => [i, w]));
+console.log("正在加载 GloVe 模型，请稍候...");
 
-const vocabSize = allWords.length;
-const embeddingDim = 5; // 向量维度
-
-// ------------------------
-// 3️⃣ 初始化 embedding 矩阵
-// ------------------------
-let embeddings = tf.variable(tf.randomNormal([vocabSize, embeddingDim]));
-
-// ------------------------
-// 4️⃣ 查询词向量函数
-// ------------------------
-function getVector(word) {
-  const idx = word2index[word];
-  return embeddings.gather([idx]);
+function loadGlove(filePath) {
+  const lines = fs.readFileSync(filePath, "utf8").split("\n");
+  const model = {};
+  for (let line of lines) {
+    if (!line) continue;
+    const parts = line.split(" ");
+    const word = parts[0];
+    const vector = parts.slice(1).map(Number);
+    model[word] = vector;
+  }
+  return model;
 }
 
+const gloveModel = loadGlove(GLOVE_FILE);
+console.log("✅ 模型加载完成");
+
 // ------------------------
-// 5️⃣ 计算余弦相似度函数
+// 2️⃣ 计算余弦相似度
 // ------------------------
 function cosineSimilarity(vecA, vecB) {
-  const dot = tf.sum(tf.mul(vecA, vecB));
-  const normA = tf.norm(vecA);
-  const normB = tf.norm(vecB);
-  return dot.div(normA.mul(normB)).dataSync()[0];
+  const dot = vecA.reduce((sum, val, i) => sum + val * vecB[i], 0);
+  const normA = Math.sqrt(vecA.reduce((sum, val) => sum + val * val, 0));
+  const normB = Math.sqrt(vecB.reduce((sum, val) => sum + val * val, 0));
+  return dot / (normA * normB);
 }
 
-// ------------------------
-// 6️⃣ 相似度文字标签
-// ------------------------
+// 相似度文字标签
 function similarityLabel(sim) {
   if (sim >= 0.7) return "非常相似";
   if (sim >= 0.4) return "较为相似";
@@ -53,29 +66,35 @@ function similarityLabel(sim) {
 }
 
 // ------------------------
-// 7️⃣ 输出词向量
+// 3️⃣ 输出词向量（前10维）
 // ------------------------
-const wordsToCheck = ["cat", "dog", "apple", "banana", "fruit"];
-
-console.log("\n词向量:");
+console.log("\n词向量示例 (前10维):");
 wordsToCheck.forEach((word) => {
-  const vec = getVector(word).dataSync();
-  console.log(
-    `${word}: [${Array.from(vec)
-      .map((v) => v.toFixed(3))
-      .join(", ")}]`
-  );
+  if (gloveModel[word]) {
+    console.log(
+      `${word}: [${gloveModel[word]
+        .slice(0, 10)
+        .map((v) => v.toFixed(3))
+        .join(", ")} ...]`
+    );
+  } else {
+    console.log(`${word}: ❌ 不在 GloVe 模型词表中`);
+  }
 });
 
 // ------------------------
-// 8️⃣ 输出词相似度 + 标签
+// 4️⃣ 输出两两相似度
 // ------------------------
 console.log("\n词相似度:");
 for (let i = 0; i < wordsToCheck.length; i++) {
   for (let j = i + 1; j < wordsToCheck.length; j++) {
     const w1 = wordsToCheck[i];
     const w2 = wordsToCheck[j];
-    const sim = cosineSimilarity(getVector(w1), getVector(w2));
-    console.log(`${w1} vs ${w2}: ${sim.toFixed(3)} (${similarityLabel(sim)})`);
+    if (gloveModel[w1] && gloveModel[w2]) {
+      const sim = cosineSimilarity(gloveModel[w1], gloveModel[w2]);
+      console.log(
+        `${w1} vs ${w2}: ${sim.toFixed(3)} (${similarityLabel(sim)})`
+      );
+    }
   }
 }
