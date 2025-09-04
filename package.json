@@ -2,6 +2,7 @@
   "name": "word-2-vec-sample",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -9,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@huggingface/transformers": "^3.7.2",
     "@tensorflow/tfjs": "^4.22.0",
     "word2vec": "^1.1.5"
   }

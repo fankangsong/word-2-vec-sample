@@ -141,3 +141,5 @@ vite.config.ts.timestamp-*
 .vite/
 
 src/models
+
+package-lock.json
