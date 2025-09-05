@@ -143,3 +143,5 @@ vite.config.ts.timestamp-*
 src/models
 
 package-lock.json
+
+lancedb_data
